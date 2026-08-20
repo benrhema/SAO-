@@ -1,0 +1,206 @@
+import uuid
+from django.db import models
+
+
+class NewsArticle(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    title = models.CharField(max_length=255)
+    slug = models.SlugField(max_length=255, unique=True)
+    category = models.CharField(max_length=100, blank=True)
+    excerpt = models.TextField(blank=True)
+    content = models.TextField(blank=True)
+    image_url = models.URLField(max_length=500, blank=True)
+    published_at = models.DateTimeField(null=True, blank=True)
+    is_published = models.BooleanField(default=False)
+
+    class Meta:
+        ordering = ['-published_at']
+
+    def __str__(self):
+        return self.title
+
+
+class DonationTier(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    impact_description = models.TextField(blank=True)
+    display_order = models.IntegerField(default=0)
+
+    class Meta:
+        ordering = ['display_order']
+
+    def __str__(self):
+        return f"${self.amount}"
+
+
+class Donation(models.Model):
+    class DonationType(models.TextChoices):
+        ONE_TIME = 'one-time', 'One-time'
+        MONTHLY = 'monthly', 'Monthly'
+
+    class PaymentMethod(models.TextChoices):
+        CARD = 'card', 'Card'
+        BANK_TRANSFER = 'bank_transfer', 'Bank Transfer'
+        MOBILE_MONEY = 'mobile_money', 'Mobile Money'
+
+    class PaymentStatus(models.TextChoices):
+        PENDING = 'pending', 'Pending'
+        COMPLETED = 'completed', 'Completed'
+        FAILED = 'failed', 'Failed'
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    first_name = models.CharField(max_length=100)
+    last_name = models.CharField(max_length=100)
+    email = models.EmailField()
+    phone = models.CharField(max_length=50, blank=True, null=True)
+    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    donation_type = models.CharField(max_length=20, choices=DonationType.choices)
+    payment_method = models.CharField(max_length=20, choices=PaymentMethod.choices)
+    payment_status = models.CharField(max_length=20, choices=PaymentStatus.choices, default=PaymentStatus.PENDING)
+    transaction_reference = models.CharField(max_length=255, blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.first_name} {self.last_name} - {self.amount}"
+
+
+class DonationFAQ(models.Model):
+    class SectionType(models.TextChoices):
+        WHY_DONATE = 'why_donate', 'Why Donate'
+        OTHER_WAYS = 'other_ways', 'Other Ways to Give'
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    section_type = models.CharField(max_length=20, choices=SectionType.choices)
+    text = models.CharField(max_length=1000)
+    display_order = models.IntegerField(default=0)
+
+    class Meta:
+        ordering = ['display_order']
+
+    def __str__(self):
+        return self.text[:50]
+
+
+class PartnerCategory(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    category_name = models.CharField(max_length=150)  # e.g. "Corporate", "Government", "NGO & Community"
+
+    class Meta:
+        verbose_name_plural = "Partner categories"
+
+    def __str__(self):
+        return self.category_name
+
+
+class Partner(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    category = models.ForeignKey(PartnerCategory, on_delete=models.PROTECT, related_name='partners')
+    name = models.CharField(max_length=255)
+    abbreviation = models.CharField(max_length=50, blank=True, null=True)
+    sector_or_scope = models.CharField(max_length=255, blank=True)
+    partnership_since = models.CharField(max_length=50, blank=True, null=True)
+    logo_url = models.URLField(max_length=500, blank=True, null=True)
+    display_order = models.IntegerField(default=0)
+
+    class Meta:
+        ordering = ['display_order']
+
+    def __str__(self):
+        return self.name
+
+
+class PartnerTestimonial(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    quote = models.TextField()
+    author_name = models.CharField(max_length=255)
+    author_role = models.CharField(max_length=255, blank=True)
+    organization_name = models.CharField(max_length=255, blank=True)
+    display_order = models.IntegerField(default=0)
+
+    class Meta:
+        ordering = ['display_order']
+
+    def __str__(self):
+        return f"{self.author_name} - {self.organization_name}"
+
+
+class MediaVideo(models.Model):
+    class Category(models.TextChoices):
+        IMPACT_STORIES = 'impact_stories', 'Impact Stories'
+        PROGRAMS = 'programs', 'Programs'
+        EVENTS = 'events', 'Events'
+        HEALTHCARE = 'healthcare', 'Healthcare'
+        COMMUNITY = 'community', 'Community'
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    title = models.CharField(max_length=255)
+    description = models.TextField(blank=True)
+    category = models.CharField(max_length=20, choices=Category.choices)
+    video_url = models.URLField(max_length=500)
+    thumbnail_url = models.URLField(max_length=500, blank=True)
+    duration = models.CharField(max_length=20, blank=True)
+    is_featured = models.BooleanField(default=False)
+    published_date = models.DateField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['-published_date']
+
+    def __str__(self):
+        return self.title
+
+
+class DownloadableResource(models.Model):
+    class ResourceType(models.TextChoices):
+        ANNUAL_REPORT = 'annual_report', 'Annual Report'
+        BROCHURE_GUIDE = 'brochure_guide', 'Brochure / Guide'
+        MEDIA_KIT = 'media_kit', 'Media Kit'
+        FORM_APPLICATION = 'form_application', 'Form / Application'
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    title = models.CharField(max_length=255)  # e.g. "Volunteer Application", "Annual Report 2025"
+    description = models.TextField(blank=True, null=True)
+    resource_type = models.CharField(max_length=20, choices=ResourceType.choices)
+    file_url = models.URLField(max_length=500)
+    file_type = models.CharField(max_length=20, blank=True)  # e.g. "PDF", "ZIP", "DOCX"
+    file_size = models.CharField(max_length=20, blank=True)  # e.g. "2.1 MB"
+    year = models.IntegerField(null=True, blank=True)
+    download_count = models.IntegerField(default=0)
+    display_order = models.IntegerField(default=0)
+
+    class Meta:
+        ordering = ['display_order']
+
+    def __str__(self):
+        return self.title
+
+
+class FormSubmission(models.Model):
+    class FormType(models.TextChoices):
+        PARTNERSHIP_INQUIRY = 'partnership_inquiry', 'Partnership Inquiry'
+        VOLUNTEER = 'volunteer', 'Volunteer'
+        RECEIPT_REQUEST = 'receipt_request', 'Receipt Request'
+        PROGRAM_ENROLLMENT = 'program_enrollment', 'Program Enrollment'
+
+    class Status(models.TextChoices):
+        NEW = 'new', 'New'
+        IN_REVIEW = 'in_review', 'In Review'
+        APPROVED = 'approved', 'Approved'
+        ARCHIVED = 'archived', 'Archived'
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    form_type = models.CharField(max_length=30, choices=FormType.choices)
+    applicant_name = models.CharField(max_length=255)
+    email = models.EmailField()
+    phone = models.CharField(max_length=50, blank=True, null=True)
+    message_or_details = models.TextField(blank=True, null=True)
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.NEW)
+    submitted_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-submitted_at']
+
+    def __str__(self):
+        return f"{self.applicant_name} - {self.form_type}"
