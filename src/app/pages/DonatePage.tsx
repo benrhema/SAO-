@@ -12,6 +12,11 @@ export function DonatePage() {
   const [donationType, setDonationType] = useState<"one-time" | "monthly">("one-time");
   const [amount, setAmount] = useState<number | null>(null);
   const [customAmount, setCustomAmount] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
 
   const suggestedAmounts = content.donate_suggested_amounts && content.donate_suggested_amounts.length ? content.donate_suggested_amounts : [25, 50, 100, 250, 500, 1000];
@@ -20,18 +25,42 @@ export function DonatePage() {
   const donateStats = content.donate_stats && content.donate_stats.length ? content.donate_stats : [];
   const bank = content.donate_bank || {};
 
+  const paymentMethodKey = (name: string) => {
+    const lower = (name || "").toLowerCase();
+    if (lower.includes("bank")) return "bank_transfer";
+    if (lower.includes("mobile")) return "mobile_money";
+    return "card";
+  };
+
   const handleDonate = async () => {
     const finalAmount = amount ?? Number(customAmount);
     if (!finalAmount) {
       toast.error("Please select or enter an amount");
       return;
     }
+    if (!firstName || !lastName || !email) {
+      toast.error("Please fill in your name and email");
+      return;
+    }
     setSending(true);
     try {
-      await api.donation({ donation_type: donationType, amount: finalAmount, payment_method: "" });
+      await api.donation({
+        donation_type: donationType,
+        amount: finalAmount,
+        first_name: firstName,
+        last_name: lastName,
+        email,
+        phone,
+        payment_method: paymentMethod ? paymentMethodKey(paymentMethod) : "card",
+      });
       toast.success("Thank you for your donation!");
       setCustomAmount("");
       setAmount(null);
+      setFirstName("");
+      setLastName("");
+      setEmail("");
+      setPhone("");
+      setPaymentMethod(null);
     } catch (err: any) {
       toast.error(err.message || "Failed to process donation");
     } finally {
@@ -154,22 +183,30 @@ export function DonatePage() {
                     <input
                       type="text"
                       placeholder="First Name"
+                      value={firstName}
+                      onChange={(e) => setFirstName(e.target.value)}
                       className="bg-[#0a0a0a] border border-[#FACC15]/30 px-4 py-3 text-white outline-none focus:border-[#FACC15] transition-colors"
                     />
                     <input
                       type="text"
                       placeholder="Last Name"
+                      value={lastName}
+                      onChange={(e) => setLastName(e.target.value)}
                       className="bg-[#0a0a0a] border border-[#FACC15]/30 px-4 py-3 text-white outline-none focus:border-[#FACC15] transition-colors"
                     />
                   </div>
                   <input
                     type="email"
                     placeholder="Email Address"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
                     className="w-full bg-[#0a0a0a] border border-[#FACC15]/30 px-4 py-3 text-white outline-none focus:border-[#FACC15] transition-colors mb-4"
                   />
                   <input
                     type="tel"
                     placeholder="Phone Number (Optional)"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
                     className="w-full bg-[#0a0a0a] border border-[#FACC15]/30 px-4 py-3 text-white outline-none focus:border-[#FACC15] transition-colors"
                   />
                 </div>
@@ -182,10 +219,16 @@ export function DonatePage() {
                   <div className="space-y-3">
                   {paymentMethods.map((method) => {
                     const Icon = getIcon(method.icon);
+                    const selected = paymentMethod === method.name;
                     return (
                     <button
                       key={method.name}
-                      className="w-full bg-[#0a0a0a] border border-[#FACC15]/20 p-4 hover:border-[#FACC15] transition-all flex items-center gap-4 text-left"
+                      onClick={() => setPaymentMethod(method.name)}
+                      className={`w-full border p-4 transition-all flex items-center gap-4 text-left ${
+                        selected
+                          ? "bg-[#FACC15]/10 border-[#FACC15]"
+                          : "bg-[#0a0a0a] border-[#FACC15]/20 hover:border-[#FACC15]"
+                      }`}
                     >
                       <Icon className="text-[#FACC15]" size={24} />
                         <div>

@@ -2,6 +2,273 @@ import uuid
 from django.db import models
 
 
+class SiteSettings(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    site_name = models.CharField(max_length=255, blank=True)
+    hero_title1 = models.CharField(max_length=255, blank=True)
+    hero_title2 = models.CharField(max_length=255, blank=True)
+    hero_subtitle = models.TextField(blank=True)
+    hero_btn1 = models.CharField(max_length=100, blank=True)
+    hero_btn2 = models.CharField(max_length=100, blank=True)
+    about_mission = models.TextField(blank=True)
+    about_vision = models.TextField(blank=True)
+    donate_suggested_amounts = models.CharField(
+        max_length=255, blank=True,
+        help_text="Comma-separated amounts, e.g. 25,50,100,250,500,1000",
+    )
+
+    class Meta:
+        verbose_name_plural = "Site settings"
+
+    def __str__(self):
+        return "Site Settings"
+
+
+class TeamMember(models.Model):
+    class TeamType(models.TextChoices):
+        LEADERSHIP = 'leadership', 'Leadership'
+        BOARD = 'board', 'Board'
+        STAFF = 'staff', 'Staff'
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    type = models.CharField(max_length=20, choices=TeamType.choices, default=TeamType.STAFF)
+    name = models.CharField(max_length=255)
+    role = models.CharField(max_length=255, blank=True)
+    bio = models.TextField(blank=True)
+    image_url = models.URLField(max_length=500, blank=True)
+    email = models.EmailField(blank=True)
+    linkedin = models.URLField(max_length=500, blank=True)
+    department = models.CharField(max_length=150, blank=True)
+    display_order = models.IntegerField(default=0)
+
+    class Meta:
+        ordering = ['display_order']
+
+    def __str__(self):
+        return self.name
+
+
+class AboutValue(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    icon = models.CharField(max_length=50, blank=True)
+    title = models.CharField(max_length=150)
+    description = models.TextField(blank=True)
+    display_order = models.IntegerField(default=0)
+
+    class Meta:
+        ordering = ['display_order']
+
+    def __str__(self):
+        return self.title
+
+
+class AboutStat(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    value = models.CharField(max_length=50)
+    label = models.CharField(max_length=150)
+    display_order = models.IntegerField(default=0)
+
+    class Meta:
+        ordering = ['display_order']
+
+    def __str__(self):
+        return f"{self.value} {self.label}"
+
+
+class SuccessStory(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    name = models.CharField(max_length=255)
+    story = models.TextField(blank=True)
+    program = models.CharField(max_length=255, blank=True)
+    image_url = models.URLField(max_length=500, blank=True)
+    display_order = models.IntegerField(default=0)
+
+    class Meta:
+        ordering = ['display_order']
+        verbose_name_plural = "Success stories"
+
+    def __str__(self):
+        return self.name
+
+
+class ImpactStat(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    number = models.IntegerField(default=0)
+    label = models.CharField(max_length=150)
+    sublabel = models.CharField(max_length=255, blank=True)
+    suffix = models.CharField(max_length=10, blank=True)
+    display_order = models.IntegerField(default=0)
+
+    class Meta:
+        ordering = ['display_order']
+
+    def __str__(self):
+        return f"{self.number}{self.suffix} {self.label}"
+
+
+class Program(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    icon = models.CharField(max_length=50, blank=True)
+    title = models.CharField(max_length=150)
+    description = models.TextField(blank=True)
+    benefits = models.JSONField(default=list, blank=True)
+    display_order = models.IntegerField(default=0)
+
+    class Meta:
+        ordering = ['display_order']
+
+    def __str__(self):
+        return self.title
+
+
+class VolunteerOpportunity(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    title = models.CharField(max_length=255)
+    description = models.TextField(blank=True)
+    location = models.CharField(max_length=255, blank=True)
+    time = models.CharField(max_length=150, blank=True)
+    spots = models.CharField(max_length=150, blank=True)
+    display_order = models.IntegerField(default=0)
+
+    class Meta:
+        ordering = ['display_order']
+
+    def __str__(self):
+        return self.title
+
+
+class VolunteerItem(models.Model):
+    class Kind(models.TextChoices):
+        REQUIREMENT = 'requirement', 'Requirement'
+        BENEFIT = 'benefit', 'Benefit'
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    kind = models.CharField(max_length=20, choices=Kind.choices)
+    text = models.CharField(max_length=500)
+    display_order = models.IntegerField(default=0)
+
+    class Meta:
+        ordering = ['display_order']
+
+    def __str__(self):
+        return self.text[:50]
+
+
+class UpcomingEvent(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    title = models.CharField(max_length=255)
+    description = models.TextField(blank=True)
+    date = models.CharField(max_length=100, blank=True)
+    time = models.CharField(max_length=100, blank=True)
+    location = models.CharField(max_length=255, blank=True)
+    attendees = models.CharField(max_length=150, blank=True)
+    price = models.CharField(max_length=100, blank=True)
+    image_url = models.URLField(max_length=500, blank=True)
+    featured = models.BooleanField(default=False)
+    display_order = models.IntegerField(default=0)
+
+    class Meta:
+        ordering = ['display_order']
+
+    def __str__(self):
+        return self.title
+
+
+class PastEvent(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    title = models.CharField(max_length=255)
+    participants = models.CharField(max_length=100, blank=True)
+    raised = models.CharField(max_length=100, blank=True)
+    display_order = models.IntegerField(default=0)
+
+    class Meta:
+        ordering = ['display_order']
+
+    def __str__(self):
+        return self.title
+
+
+class PhotoGallery(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    title = models.CharField(max_length=255)
+    photo_count = models.IntegerField(default=0)
+    cover_url = models.URLField(max_length=500, blank=True)
+    display_order = models.IntegerField(default=0)
+
+    class Meta:
+        ordering = ['display_order']
+        verbose_name_plural = "Photo galleries"
+
+    def __str__(self):
+        return self.title
+
+
+class DonateStat(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    prefix = models.CharField(max_length=10, blank=True)
+    number = models.IntegerField(default=0)
+    suffix = models.CharField(max_length=10, blank=True)
+    label = models.CharField(max_length=150)
+    display_order = models.IntegerField(default=0)
+
+    class Meta:
+        ordering = ['display_order']
+
+    def __str__(self):
+        return f"{self.prefix}{self.number}{self.suffix} {self.label}"
+
+
+class DonatePaymentMethod(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    icon = models.CharField(max_length=50, blank=True)
+    name = models.CharField(max_length=150)
+    description = models.CharField(max_length=255, blank=True)
+    display_order = models.IntegerField(default=0)
+
+    class Meta:
+        ordering = ['display_order']
+
+    def __str__(self):
+        return self.name
+
+
+class ContactInfo(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    address = models.TextField(blank=True)
+    phone1 = models.CharField(max_length=50, blank=True)
+    phone2 = models.CharField(max_length=50, blank=True)
+    email1 = models.EmailField(blank=True)
+    email2 = models.EmailField(blank=True)
+    hours_mon = models.CharField(max_length=100, blank=True)
+    hours_sat = models.CharField(max_length=100, blank=True)
+    hours_sun = models.CharField(max_length=100, blank=True)
+    facebook = models.URLField(max_length=500, blank=True)
+    twitter = models.URLField(max_length=500, blank=True)
+    instagram = models.URLField(max_length=500, blank=True)
+    linkedin = models.URLField(max_length=500, blank=True)
+
+    class Meta:
+        verbose_name_plural = "Contact info"
+
+    def __str__(self):
+        return "Contact Info"
+
+
+class DonateBank(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    bank_name = models.CharField(max_length=255, blank=True)
+    account_name = models.CharField(max_length=255, blank=True)
+    account_number = models.CharField(max_length=100, blank=True)
+    swift = models.CharField(max_length=50, blank=True)
+    email = models.EmailField(blank=True)
+
+    class Meta:
+        verbose_name_plural = "Donate bank details"
+
+    def __str__(self):
+        return self.bank_name or "Bank Details"
+
+
 class NewsArticle(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     title = models.CharField(max_length=255)
@@ -128,20 +395,21 @@ class PartnerTestimonial(models.Model):
 
 
 class MediaVideo(models.Model):
-    class Category(models.TextChoices):
-        IMPACT_STORIES = 'impact_stories', 'Impact Stories'
+    class Section(models.TextChoices):
+        ALL = 'all', 'All'
+        IMPACT = 'impact', 'Impact Stories'
         PROGRAMS = 'programs', 'Programs'
         EVENTS = 'events', 'Events'
-        HEALTHCARE = 'healthcare', 'Healthcare'
-        COMMUNITY = 'community', 'Community'
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    section = models.CharField(max_length=20, choices=Section.choices, default=Section.ALL)
     title = models.CharField(max_length=255)
     description = models.TextField(blank=True)
-    category = models.CharField(max_length=20, choices=Category.choices)
-    video_url = models.URLField(max_length=500)
+    category = models.CharField(max_length=100, blank=True)
+    video_url = models.URLField(max_length=500, blank=True)
     thumbnail_url = models.URLField(max_length=500, blank=True)
     duration = models.CharField(max_length=20, blank=True)
+    date_label = models.CharField(max_length=50, blank=True)
     is_featured = models.BooleanField(default=False)
     published_date = models.DateField(null=True, blank=True)
 
@@ -154,16 +422,16 @@ class MediaVideo(models.Model):
 
 class DownloadableResource(models.Model):
     class ResourceType(models.TextChoices):
-        ANNUAL_REPORT = 'annual_report', 'Annual Report'
-        BROCHURE_GUIDE = 'brochure_guide', 'Brochure / Guide'
-        MEDIA_KIT = 'media_kit', 'Media Kit'
-        FORM_APPLICATION = 'form_application', 'Form / Application'
+        ANNUAL_REPORT = 'report', 'Annual Report'
+        BROCHURE_GUIDE = 'brochure', 'Brochure / Guide'
+        MEDIA_KIT = 'media', 'Media Kit'
+        FORM_APPLICATION = 'form', 'Form / Application'
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     title = models.CharField(max_length=255)  # e.g. "Volunteer Application", "Annual Report 2025"
     description = models.TextField(blank=True, null=True)
     resource_type = models.CharField(max_length=20, choices=ResourceType.choices)
-    file_url = models.URLField(max_length=500)
+    file_url = models.URLField(max_length=500, blank=True)
     file_type = models.CharField(max_length=20, blank=True)  # e.g. "PDF", "ZIP", "DOCX"
     file_size = models.CharField(max_length=20, blank=True)  # e.g. "2.1 MB"
     year = models.IntegerField(null=True, blank=True)
@@ -179,6 +447,7 @@ class DownloadableResource(models.Model):
 
 class FormSubmission(models.Model):
     class FormType(models.TextChoices):
+        CONTACT = 'contact', 'Contact'
         PARTNERSHIP_INQUIRY = 'partnership_inquiry', 'Partnership Inquiry'
         VOLUNTEER = 'volunteer', 'Volunteer'
         RECEIPT_REQUEST = 'receipt_request', 'Receipt Request'

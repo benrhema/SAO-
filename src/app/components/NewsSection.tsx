@@ -1,58 +1,24 @@
-import { useEffect, useState } from "react";
 import { Calendar, ArrowRight } from "lucide-react";
 import { ImageWithFallback } from "./figma/ImageWithFallback";
-
-interface ApiNewsArticle {
-  id: string;
-  title: string;
-  category: string;
-  excerpt: string;
-  image_url: string;
-  published_at: string;
-}
-
-interface NewsArticle {
-  id: string;
-  title: string;
-  category: string;
-  excerpt: string;
-  image: string;
-  date: string;
-}
-
-const API_URL = "http://127.0.0.1:8000/api/news/";
+import { useContent } from "../../lib/content";
 
 export function NewsSection() {
-  const [newsArticles, setNewsArticles] = useState<NewsArticle[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const content = useContent();
 
-  useEffect(() => {
-    fetch(API_URL)
-      .then((res) => {
-        if (!res.ok) throw new Error(`Request failed: ${res.status}`);
-        return res.json();
-      })
-      .then((data: ApiNewsArticle[]) => {
-        const mapped = data.map((article) => ({
-          id: article.id,
-          title: article.title,
-          category: article.category,
-          excerpt: article.excerpt,
-          image: article.image_url,
-          date: article.published_at
-            ? new Date(article.published_at).toLocaleDateString(undefined, {
-                year: "numeric",
-                month: "long",
-                day: "numeric",
-              })
-            : "",
-        }));
-        setNewsArticles(mapped);
-      })
-      .catch((err) => setError(err.message))
-      .finally(() => setLoading(false));
-  }, []);
+  const newsArticles = (content.news || []).map((article: any) => ({
+    id: article.id,
+    title: article.title,
+    category: article.category,
+    excerpt: article.excerpt,
+    image: article.image_url,
+    date: article.published_at
+      ? new Date(article.published_at).toLocaleDateString(undefined, {
+          year: "numeric",
+          month: "long",
+          day: "numeric",
+        })
+      : "",
+  }));
 
   return (
     <section id="news" className="min-h-screen px-6 md:px-32 py-20">
@@ -64,13 +30,7 @@ export function NewsSection() {
           Stay updated with our latest programs, initiatives, and success stories from the field.
         </p>
 
-        {loading && <p className="text-gray-400">Loading news...</p>}
-        {error && (
-          <p className="text-red-400">
-            Couldn't load news right now. Make sure the Django server is running at {API_URL}
-          </p>
-        )}
-        {!loading && !error && newsArticles.length === 0 && (
+        {newsArticles.length === 0 && (
           <p className="text-gray-400">No published news articles yet.</p>
         )}
 

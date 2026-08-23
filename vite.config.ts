@@ -31,10 +31,10 @@ export default defineConfig({
     },
   },
 
-  // Proxy API requests to the local backend server (port 3001) during development
+  // Proxy API requests to the local Django backend during development
   server: {
     proxy: {
-      '/api': 'http://localhost:3001',
+      '/api': 'http://localhost:8000',
     },
   },
 

@@ -1,103 +1,126 @@
 import { useEffect, useState, type ReactNode } from "react";
 import {
-  LayoutDashboard, Settings, Users, Handshake, Quote, GraduationCap, BarChart3,
+  LayoutDashboard, Settings, Users, Handshake, Tag, Quote, GraduationCap, BarChart3,
   Star, HeartHandshake, CalendarDays, Newspaper, Video, Image as ImageIcon, FileText,
   Award, Phone, CreditCard, Landmark, Inbox, LogOut, Plus, Pencil, Trash2,
+  Eye, EyeOff, PanelLeftClose, PanelLeftOpen,
 } from "lucide-react";
 import { api, getToken, setToken, clearToken } from "../../lib/api";
+import { getShowPublicNav, setShowPublicNav, onNavVisibilityChange } from "../../lib/navVisibility";
 import { toast } from "sonner";
 
-type FieldType = "text" | "textarea" | "number" | "select" | "checkbox" | "image";
+const SIDEBAR_KEY = "sao_admin_sidebar_open";
+function getSidebarOpen() {
+  const v = localStorage.getItem(SIDEBAR_KEY);
+  return v === null ? true : v === "1";
+}
+function setSidebarOpen(open: boolean) {
+  localStorage.setItem(SIDEBAR_KEY, open ? "1" : "0");
+}
+
+type FieldType = "text" | "textarea" | "number" | "select" | "checkbox" | "image" | "list";
 interface Field { name: string; label: string; type: FieldType; options?: string[]; hint?: string; }
 interface Section {
-  key: string; label: string; icon: ReactNode; kind: "crud" | "single" | "settings" | "submissions";
-  endpoint?: string; fields?: Field[]; keys?: string[];
+  key: string; label: string; icon: ReactNode; kind: "dashboard" | "crud" | "single" | "submissions";
+  endpoint?: string; fields?: Field[];
 }
 
 const ICON_OPTIONS = ["Heart", "Users", "Lightbulb", "Target", "GraduationCap", "Stethoscope", "Accessibility", "Home", "Briefcase", "Apple", "CreditCard", "Building2", "Smartphone"];
 
 const SECTIONS: Section[] = [
   { key: "dashboard", label: "Dashboard", icon: <LayoutDashboard size={18} />, kind: "dashboard" },
-  { key: "settings", label: "Site Settings", icon: <Settings size={18} />, kind: "settings", keys: ["site_name", "hero_title1", "hero_title2", "hero_subtitle", "hero_btn1", "hero_btn2", "about_mission", "about_vision", "donate_suggested_amounts"] },
+  { key: "settings", label: "Site Settings", icon: <Settings size={18} />, kind: "single", endpoint: "settings", fields: [
+    { name: "site_name", label: "Site Name", type: "text" },
+    { name: "hero_title1", label: "Hero Title 1", type: "text" }, { name: "hero_title2", label: "Hero Title 2", type: "text" },
+    { name: "hero_subtitle", label: "Hero Subtitle", type: "textarea" },
+    { name: "hero_btn1", label: "Hero Button 1", type: "text" }, { name: "hero_btn2", label: "Hero Button 2", type: "text" },
+    { name: "about_mission", label: "About Mission", type: "textarea" }, { name: "about_vision", label: "About Vision", type: "textarea" },
+    { name: "donate_suggested_amounts", label: "Donate Suggested Amounts (comma separated)", type: "text" },
+  ] },
   { key: "team", label: "Team", icon: <Users size={18} />, kind: "crud", endpoint: "team", fields: [
     { name: "type", label: "Type", type: "select", options: ["leadership", "board", "staff"] },
     { name: "name", label: "Name", type: "text" }, { name: "role", label: "Role", type: "text" },
-    { name: "bio", label: "Bio", type: "textarea" }, { name: "image", label: "Image URL", type: "image" },
+    { name: "bio", label: "Bio", type: "textarea" }, { name: "image_url", label: "Image URL", type: "image" },
     { name: "email", label: "Email", type: "text" }, { name: "linkedin", label: "LinkedIn", type: "text" },
     { name: "department", label: "Department", type: "text" },
   ] },
-  { key: "partners", label: "Partners", icon: <Handshake size={18} />, kind: "crud", endpoint: "partners", fields: [
-    { name: "type", label: "Type", type: "select", options: ["corporate", "government", "ngo"] },
-    { name: "name", label: "Name", type: "text" }, { name: "category", label: "Category / Label", type: "text" },
-    { name: "since", label: "Since", type: "text" }, { name: "region", label: "Region", type: "text" },
+  { key: "about_values", label: "About Values", icon: <Award size={18} />, kind: "crud", endpoint: "about-values", fields: [
+    { name: "icon", label: "Icon", type: "select", options: ICON_OPTIONS },
+    { name: "title", label: "Title", type: "text" }, { name: "description", label: "Description", type: "textarea" },
   ] },
-  { key: "testimonials", label: "Testimonials", icon: <Quote size={18} />, kind: "crud", endpoint: "testimonials", fields: [
-    { name: "quote", label: "Quote", type: "textarea" }, { name: "author", label: "Author", type: "text" },
-    { name: "organization", label: "Organization", type: "text" }, { name: "role", label: "Role", type: "text" },
+  { key: "about_stats", label: "About Stats", icon: <BarChart3 size={18} />, kind: "crud", endpoint: "about-stats", fields: [
+    { name: "value", label: "Value", type: "text" }, { name: "label", label: "Label", type: "text" },
   ] },
   { key: "programs", label: "Programs", icon: <GraduationCap size={18} />, kind: "crud", endpoint: "programs", fields: [
     { name: "icon", label: "Icon", type: "select", options: ICON_OPTIONS },
     { name: "title", label: "Title", type: "text" }, { name: "description", label: "Description", type: "textarea" },
-    { name: "benefits", label: "Benefits (one per line)", type: "textarea" },
+    { name: "benefits", label: "Benefits (one per line)", type: "list" },
   ] },
-  { key: "impact_stats", label: "Impact Stats", icon: <BarChart3 size={18} />, kind: "crud", endpoint: "impact_stats", fields: [
+  { key: "impact_stats", label: "Impact Stats", icon: <BarChart3 size={18} />, kind: "crud", endpoint: "impact-stats", fields: [
     { name: "number", label: "Number", type: "number" }, { name: "label", label: "Label", type: "text" },
     { name: "sublabel", label: "Sublabel", type: "text" }, { name: "suffix", label: "Suffix", type: "text" },
   ] },
-  { key: "success_stories", label: "Success Stories", icon: <Star size={18} />, kind: "crud", endpoint: "success_stories", fields: [
+  { key: "success_stories", label: "Success Stories", icon: <Star size={18} />, kind: "crud", endpoint: "success-stories", fields: [
     { name: "name", label: "Name", type: "text" }, { name: "story", label: "Story", type: "textarea" },
-    { name: "program", label: "Program", type: "text" }, { name: "image", label: "Image URL", type: "image" },
+    { name: "program", label: "Program", type: "text" }, { name: "image_url", label: "Image URL", type: "image" },
   ] },
-  { key: "volunteer_opportunities", label: "Volunteer Roles", icon: <HeartHandshake size={18} />, kind: "crud", endpoint: "volunteer_opportunities", fields: [
+  { key: "volunteer_opportunities", label: "Volunteer Roles", icon: <HeartHandshake size={18} />, kind: "crud", endpoint: "volunteer-opportunities", fields: [
     { name: "title", label: "Title", type: "text" }, { name: "location", label: "Location", type: "text" },
     { name: "time", label: "Time", type: "text" }, { name: "spots", label: "Spots", type: "text" },
     { name: "description", label: "Description", type: "textarea" },
   ] },
-  { key: "volunteer_items", label: "Volunteer Info", icon: <HeartHandshake size={18} />, kind: "crud", endpoint: "volunteer_items", fields: [
+  { key: "volunteer_items", label: "Volunteer Info", icon: <HeartHandshake size={18} />, kind: "crud", endpoint: "volunteer-items", fields: [
     { name: "kind", label: "Kind", type: "select", options: ["requirement", "benefit"] },
     { name: "text", label: "Text", type: "textarea" },
   ] },
-  { key: "upcoming_events", label: "Upcoming Events", icon: <CalendarDays size={18} />, kind: "crud", endpoint: "upcoming_events", fields: [
+  { key: "upcoming_events", label: "Upcoming Events", icon: <CalendarDays size={18} />, kind: "crud", endpoint: "upcoming-events", fields: [
     { name: "title", label: "Title", type: "text" }, { name: "date", label: "Date", type: "text" },
     { name: "time", label: "Time", type: "text" }, { name: "location", label: "Location", type: "text" },
     { name: "attendees", label: "Attendees", type: "text" }, { name: "price", label: "Price", type: "text" },
-    { name: "description", label: "Description", type: "textarea" }, { name: "image", label: "Image URL", type: "image" },
+    { name: "description", label: "Description", type: "textarea" }, { name: "image_url", label: "Image URL", type: "image" },
     { name: "featured", label: "Featured", type: "checkbox" },
   ] },
-  { key: "past_events", label: "Past Events", icon: <CalendarDays size={18} />, kind: "crud", endpoint: "past_events", fields: [
+  { key: "past_events", label: "Past Events", icon: <CalendarDays size={18} />, kind: "crud", endpoint: "past-events", fields: [
     { name: "title", label: "Title", type: "text" }, { name: "participants", label: "Participants", type: "text" },
     { name: "raised", label: "Raised", type: "text" },
   ] },
   { key: "news", label: "News", icon: <Newspaper size={18} />, kind: "crud", endpoint: "news", fields: [
-    { name: "title", label: "Title", type: "text" }, { name: "excerpt", label: "Excerpt", type: "textarea" },
-    { name: "date", label: "Date", type: "text" }, { name: "image", label: "Image URL", type: "image" },
-    { name: "category", label: "Category", type: "text" },
+    { name: "title", label: "Title", type: "text" }, { name: "category", label: "Category", type: "text" },
+    { name: "excerpt", label: "Excerpt", type: "textarea" }, { name: "content", label: "Full Content", type: "textarea" },
+    { name: "image_url", label: "Image URL", type: "image" }, { name: "is_published", label: "Published", type: "checkbox" },
   ] },
-  { key: "media_videos", label: "Media Videos", icon: <Video size={18} />, kind: "crud", endpoint: "media_videos", fields: [
+  { key: "partners", label: "Partners", icon: <Handshake size={18} />, kind: "crud", endpoint: "partners", fields: [
+    { name: "category", label: "Category (e.g. Corporate, Government, NGO)", type: "text" },
+    { name: "name", label: "Name", type: "text" }, { name: "abbreviation", label: "Abbreviation", type: "text" },
+    { name: "sector_or_scope", label: "Sector / Scope", type: "text" }, { name: "partnership_since", label: "Partner Since", type: "text" },
+    { name: "logo_url", label: "Logo URL", type: "image" },
+  ] },
+  { key: "partner_categories", label: "Partner Categories", icon: <Tag size={18} />, kind: "crud", endpoint: "partner-categories", fields: [
+    { name: "category_name", label: "Category Name", type: "text" },
+  ] },
+  { key: "partner_testimonials", label: "Partner Testimonials", icon: <Quote size={18} />, kind: "crud", endpoint: "partner-testimonials", fields: [
+    { name: "quote", label: "Quote", type: "textarea" }, { name: "author_name", label: "Author Name", type: "text" },
+    { name: "author_role", label: "Author Role", type: "text" }, { name: "organization_name", label: "Organization", type: "text" },
+  ] },
+  { key: "media_videos", label: "Media Videos", icon: <Video size={18} />, kind: "crud", endpoint: "media-videos", fields: [
     { name: "section", label: "Section", type: "select", options: ["all", "impact", "programs", "events"] },
     { name: "title", label: "Title", type: "text" }, { name: "description", label: "Description", type: "textarea" },
-    { name: "thumbnail", label: "Thumbnail URL", type: "image" }, { name: "duration", label: "Duration", type: "text" },
-    { name: "category", label: "Category", type: "text" }, { name: "date", label: "Date", type: "text" },
-    { name: "featured", label: "Featured", type: "checkbox" },
+    { name: "video_url", label: "Video URL", type: "text" }, { name: "thumbnail_url", label: "Thumbnail URL", type: "image" },
+    { name: "duration", label: "Duration", type: "text" }, { name: "category", label: "Category", type: "text" },
+    { name: "date_label", label: "Date (display text)", type: "text" }, { name: "is_featured", label: "Featured", type: "checkbox" },
   ] },
-  { key: "photo_galleries", label: "Photo Galleries", icon: <ImageIcon size={18} />, kind: "crud", endpoint: "photo_galleries", fields: [
-    { name: "title", label: "Title", type: "text" }, { name: "count", label: "Count", type: "text" },
-    { name: "cover", label: "Cover URL", type: "image" },
+  { key: "photo_galleries", label: "Photo Galleries", icon: <ImageIcon size={18} />, kind: "crud", endpoint: "photo-galleries", fields: [
+    { name: "title", label: "Title", type: "text" }, { name: "photo_count", label: "Photo Count", type: "number" },
+    { name: "cover_url", label: "Cover URL", type: "image" },
   ] },
   { key: "resources", label: "Resources", icon: <FileText size={18} />, kind: "crud", endpoint: "resources", fields: [
-    { name: "category", label: "Category", type: "select", options: ["report", "brochure", "media", "form"] },
+    { name: "resource_type", label: "Category", type: "select", options: ["report", "brochure", "media", "form"] },
     { name: "title", label: "Title", type: "text" }, { name: "description", label: "Description", type: "textarea" },
-    { name: "year", label: "Year", type: "text" }, { name: "size", label: "Size", type: "text" },
-    { name: "downloads", label: "Downloads", type: "number" }, { name: "type", label: "Type", type: "text" },
+    { name: "file_url", label: "File URL", type: "text" }, { name: "file_type", label: "File Type (PDF/ZIP/...)", type: "text" },
+    { name: "file_size", label: "File Size", type: "text" }, { name: "year", label: "Year", type: "number" },
+    { name: "download_count", label: "Downloads", type: "number" },
   ] },
-  { key: "about_values", label: "About Values", icon: <Award size={18} />, kind: "crud", endpoint: "about_values", fields: [
-    { name: "icon", label: "Icon", type: "select", options: ICON_OPTIONS },
-    { name: "title", label: "Title", type: "text" }, { name: "description", label: "Description", type: "textarea" },
-  ] },
-  { key: "about_stats", label: "About Stats", icon: <BarChart3 size={18} />, kind: "crud", endpoint: "about_stats", fields: [
-    { name: "value", label: "Value", type: "text" }, { name: "label", label: "Label", type: "text" },
-  ] },
-  { key: "contact_info", label: "Contact Info", icon: <Phone size={18} />, kind: "single", endpoint: "contact_info", fields: [
+  { key: "contact_info", label: "Contact Info", icon: <Phone size={18} />, kind: "single", endpoint: "contact-info", fields: [
     { name: "address", label: "Address", type: "textarea" }, { name: "phone1", label: "Phone 1", type: "text" },
     { name: "phone2", label: "Phone 2", type: "text" }, { name: "email1", label: "Email 1", type: "text" },
     { name: "email2", label: "Email 2", type: "text" }, { name: "hours_mon", label: "Hours (Mon-Fri)", type: "text" },
@@ -105,18 +128,18 @@ const SECTIONS: Section[] = [
     { name: "facebook", label: "Facebook URL", type: "text" }, { name: "twitter", label: "Twitter URL", type: "text" },
     { name: "instagram", label: "Instagram URL", type: "text" }, { name: "linkedin", label: "LinkedIn URL", type: "text" },
   ] },
-  { key: "donate_stats", label: "Donate Stats", icon: <CreditCard size={18} />, kind: "crud", endpoint: "donate_stats", fields: [
+  { key: "donate_stats", label: "Donate Stats", icon: <CreditCard size={18} />, kind: "crud", endpoint: "donate-stats", fields: [
     { name: "prefix", label: "Prefix", type: "text" }, { name: "number", label: "Number", type: "number" },
     { name: "suffix", label: "Suffix", type: "text" }, { name: "label", label: "Label", type: "text" },
   ] },
-  { key: "donate_impact_examples", label: "Donate Impact", icon: <CreditCard size={18} />, kind: "crud", endpoint: "donate_impact_examples", fields: [
+  { key: "donate_impact_examples", label: "Donate Impact", icon: <CreditCard size={18} />, kind: "crud", endpoint: "donation-tiers", fields: [
     { name: "amount", label: "Amount", type: "number" }, { name: "impact", label: "Impact", type: "textarea" },
   ] },
-  { key: "donate_payment_methods", label: "Payment Methods", icon: <CreditCard size={18} />, kind: "crud", endpoint: "donate_payment_methods", fields: [
+  { key: "donate_payment_methods", label: "Payment Methods", icon: <CreditCard size={18} />, kind: "crud", endpoint: "donate-payment-methods", fields: [
     { name: "icon", label: "Icon", type: "select", options: ICON_OPTIONS },
     { name: "name", label: "Name", type: "text" }, { name: "description", label: "Description", type: "text" },
   ] },
-  { key: "donate_bank", label: "Bank Details", icon: <Landmark size={18} />, kind: "single", endpoint: "donate_bank", fields: [
+  { key: "donate_bank", label: "Bank Details", icon: <Landmark size={18} />, kind: "single", endpoint: "donate-bank", fields: [
     { name: "bank_name", label: "Bank Name", type: "text" }, { name: "account_name", label: "Account Name", type: "text" },
     { name: "account_number", label: "Account Number", type: "text" }, { name: "swift", label: "SWIFT", type: "text" },
     { name: "email", label: "Email", type: "text" },
@@ -127,8 +150,17 @@ const SECTIONS: Section[] = [
 function FieldInput({ field, value, onChange }: { field: Field; value: any; onChange: (v: any) => void }) {
   const base = "w-full bg-black/60 border border-[#FACC15]/30 px-3 py-2 text-white text-sm outline-none focus:border-[#FACC15] rounded";
   if (field.type === "textarea") return <textarea rows={3} className={base + " resize-y"} value={value || ""} onChange={(e) => onChange(e.target.value)} placeholder={field.label} />;
+  if (field.type === "list") return (
+    <textarea
+      rows={4}
+      className={base + " resize-y"}
+      value={Array.isArray(value) ? value.join("\n") : value || ""}
+      onChange={(e) => onChange(e.target.value.split("\n"))}
+      placeholder={field.label}
+    />
+  );
   if (field.type === "number") return <input type="number" className={base} value={value ?? ""} onChange={(e) => onChange(e.target.value === "" ? "" : Number(e.target.value))} />;
-  if (field.type === "checkbox") return <input type="checkbox" className="w-5 h-5 accent-[#FACC15]" checked={!!value} onChange={(e) => onChange(e.target.checked ? 1 : 0)} />;
+  if (field.type === "checkbox") return <input type="checkbox" className="w-5 h-5 accent-[#FACC15]" checked={!!value} onChange={(e) => onChange(e.target.checked)} />;
   if (field.type === "select") return (
     <select className={base} value={value || ""} onChange={(e) => onChange(e.target.value)}>
       <option value="">Select...</option>
@@ -160,7 +192,7 @@ function CrudSection({ section }: { section: Section }) {
       load();
     } catch (e: any) { toast.error(e.message); }
   };
-  const remove = async (id: number) => {
+  const remove = async (id: string) => {
     if (!confirm("Delete this item?")) return;
     try { await api.remove(section.endpoint!, id); toast.success("Deleted"); load(); }
     catch (e: any) { toast.error(e.message); }
@@ -189,7 +221,7 @@ function CrudSection({ section }: { section: Section }) {
                 <tr key={item.id} className="border-t border-[#FACC15]/10">
                   {section.fields!.slice(0, 4).map((f) => (
                     <td key={f.name} className="p-3 text-gray-300 max-w-xs truncate">
-                      {f.type === "checkbox" ? (item[f.name] ? "Yes" : "No") : String(item[f.name] ?? "")}
+                      {f.type === "checkbox" ? (item[f.name] ? "Yes" : "No") : f.type === "list" ? (Array.isArray(item[f.name]) ? item[f.name].join(", ") : "") : String(item[f.name] ?? "")}
                     </td>
                   ))}
                   <td className="p-3 text-right whitespace-nowrap">
@@ -231,10 +263,23 @@ function SingleSection({ section }: { section: Section }) {
   const [form, setForm] = useState<any>({});
   const [loading, setLoading] = useState(true);
   useEffect(() => {
-    api.get(section.endpoint!).then((d) => { setForm(d || {}); setLoading(false); }).catch(() => setLoading(false));
+    api.get(section.endpoint!)
+      .then((d) => {
+        const row = Array.isArray(d) ? d[0] : d;
+        setForm(row || {});
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
   }, [section.endpoint]);
   const save = async () => {
-    try { await api.update(section.endpoint!, form.id, form); toast.success("Saved"); }
+    try {
+      if (form.id) await api.update(section.endpoint!, form.id, form);
+      else {
+        const created = await api.create(section.endpoint!, form);
+        setForm(created);
+      }
+      toast.success("Saved");
+    }
     catch (e: any) { toast.error(e.message); }
   };
   return (
@@ -255,58 +300,17 @@ function SingleSection({ section }: { section: Section }) {
   );
 }
 
-function SettingsSection() {
-  const keys = ["site_name", "hero_title1", "hero_title2", "hero_subtitle", "hero_btn1", "hero_btn2", "about_mission", "about_vision", "donate_suggested_amounts"];
-  const labels: Record<string, string> = {
-    site_name: "Site Name", hero_title1: "Hero Title 1", hero_title2: "Hero Title 2", hero_subtitle: "Hero Subtitle",
-    hero_btn1: "Hero Button 1", hero_btn2: "Hero Button 2", about_mission: "About Mission", about_vision: "About Vision",
-    donate_suggested_amounts: "Donate Suggested Amounts (comma separated)",
-  };
-  const [values, setValues] = useState<Record<string, string>>({});
-  const [loading, setLoading] = useState(true);
-  useEffect(() => {
-    Promise.all(keys.map((k) => api.getSetting(k))).then((res) => {
-      const v: Record<string, string> = {};
-      res.forEach((r, i) => { v[keys[i]] = r.value || ""; });
-      setValues(v); setLoading(false);
-    }).catch(() => setLoading(false));
-  }, []);
-  const save = async () => {
-    try {
-      for (const k of keys) await api.setSetting(k, values[k]);
-      toast.success("Settings saved");
-    } catch (e: any) { toast.error(e.message); }
-  };
-  return (
-    <div>
-      <h2 className="text-3xl font-black uppercase mb-6">Site Settings</h2>
-      {loading ? <p className="text-gray-400">Loading...</p> : (
-        <div className="grid gap-4 max-w-2xl">
-          {keys.map((k) => (
-            <div key={k}>
-              <label className="block text-xs font-black uppercase tracking-wider mb-1 text-[#FACC15]">{labels[k]}</label>
-              {k === "about_mission" || k === "about_vision" || k === "hero_subtitle" ? (
-                <textarea rows={3} className="w-full bg-black/60 border border-[#FACC15]/30 px-3 py-2 text-white text-sm outline-none focus:border-[#FACC15] rounded" value={values[k]} onChange={(e) => setValues({ ...values, [k]: e.target.value })} />
-              ) : (
-                <input type="text" className="w-full bg-black/60 border border-[#FACC15]/30 px-3 py-2 text-white text-sm outline-none focus:border-[#FACC15] rounded" value={values[k]} onChange={(e) => setValues({ ...values, [k]: e.target.value })} />
-              )}
-            </div>
-          ))}
-          <button onClick={save} className="bg-[#FACC15] text-black px-6 py-2 font-black uppercase text-sm hover:bg-[#ffd700] transition-all w-fit mt-2">Save Settings</button>
-        </div>
-      )}
-    </div>
-  );
-}
-
 function SubmissionsSection() {
   const [contacts, setContacts] = useState<any[]>([]);
   const [volunteers, setVolunteers] = useState<any[]>([]);
   const [donations, setDonations] = useState<any[]>([]);
   useEffect(() => {
-    api.get("admin/contacts").then(setContacts).catch(() => {});
-    api.get("admin/volunteers").then(setVolunteers).catch(() => {});
-    api.get("admin/donations").then(setDonations).catch(() => {});
+    api.get("form-submissions").then((data) => {
+      const rows = Array.isArray(data) ? data : [];
+      setContacts(rows.filter((r) => r.form_type === "contact"));
+      setVolunteers(rows.filter((r) => r.form_type === "volunteer"));
+    }).catch(() => {});
+    api.get("donations").then((data) => setDonations(Array.isArray(data) ? data : [])).catch(() => {});
   }, []);
   const Table = ({ title, rows, cols }: { title: string; rows: any[]; cols: string[] }) => (
     <div className="mb-10">
@@ -325,29 +329,31 @@ function SubmissionsSection() {
   return (
     <div>
       <h2 className="text-3xl font-black uppercase mb-6">Form Submissions</h2>
-      <Table title="Contact Messages" rows={contacts} cols={["name", "email", "phone", "message", "created_at"]} />
-      <Table title="Volunteer Applications" rows={volunteers} cols={["name", "email", "phone", "opportunity", "created_at"]} />
+      <Table title="Contact Messages" rows={contacts} cols={["applicant_name", "email", "phone", "message_or_details", "submitted_at"]} />
+      <Table title="Volunteer Applications" rows={volunteers} cols={["applicant_name", "email", "phone", "message_or_details", "submitted_at"]} />
       <Table title="Donations" rows={donations} cols={["donation_type", "amount", "first_name", "last_name", "email", "created_at"]} />
     </div>
   );
 }
 
 function Login({ onLogin }: { onLogin: () => void }) {
+  const [username, setUsername] = useState("");
   const [pw, setPw] = useState("");
   const [err, setErr] = useState("");
   const submit = async () => {
-    try { const { token } = await api.login(pw); setToken(token); onLogin(); }
-    catch (e: any) { setErr(e.message || "Invalid password"); }
+    try { const { token } = await api.login(username, pw); setToken(token); onLogin(); }
+    catch (e: any) { setErr(e.message || "Invalid username or password"); }
   };
   return (
     <div className="min-h-screen flex items-center justify-center bg-black">
       <div className="bg-[#0a0a0a] border border-[#FACC15]/30 p-8 w-full max-w-sm">
         <div className="text-3xl font-black text-[#FACC15] mb-1">SAO</div>
         <p className="text-gray-400 text-sm mb-6">Admin Login</p>
+        <input type="text" className="w-full bg-black border border-[#FACC15]/30 px-3 py-3 text-white outline-none focus:border-[#FACC15] mb-3" placeholder="Username" value={username} onChange={(e) => setUsername(e.target.value)} onKeyDown={(e) => e.key === "Enter" && submit()} />
         <input type="password" className="w-full bg-black border border-[#FACC15]/30 px-3 py-3 text-white outline-none focus:border-[#FACC15] mb-4" placeholder="Password" value={pw} onChange={(e) => setPw(e.target.value)} onKeyDown={(e) => e.key === "Enter" && submit()} />
         {err && <p className="text-red-400 text-sm mb-3">{err}</p>}
         <button onClick={submit} className="w-full bg-[#FACC15] text-black py-3 font-black uppercase text-sm hover:bg-[#ffd700] transition-all">Login</button>
-        <p className="text-gray-600 text-xs mt-4">Default password: admin123</p>
+        <p className="text-gray-600 text-xs mt-4">Use the Django admin account (create one with `python manage.py createsuperuser`).</p>
       </div>
     </div>
   );
@@ -356,6 +362,15 @@ function Login({ onLogin }: { onLogin: () => void }) {
 export function AdminApp() {
   const [authed, setAuthed] = useState(!!getToken());
   const [active, setActive] = useState("dashboard");
+  const [sidebarOpen, setSidebarOpenState] = useState(getSidebarOpen());
+  const [showPublicNav, setShowPublicNavState] = useState(getShowPublicNav());
+
+  useEffect(() => onNavVisibilityChange(() => setShowPublicNavState(getShowPublicNav())), []);
+
+  const toggleSidebar = (open: boolean) => {
+    setSidebarOpen(open);
+    setSidebarOpenState(open);
+  };
 
   if (!authed) return <Login onLogin={() => setAuthed(true)} />;
 
@@ -363,28 +378,53 @@ export function AdminApp() {
 
   return (
     <div className="min-h-screen bg-black text-white flex">
-      <aside className="w-64 bg-[#0a0a0a] border-r border-[#FACC15]/20 p-4 fixed h-full overflow-y-auto">
-        <div className="text-2xl font-black text-[#FACC15] mb-6">SAO ADMIN</div>
-        <nav className="space-y-1">
-          {SECTIONS.map((s) => (
-            <button key={s.key} onClick={() => setActive(s.key)} className={`w-full flex items-center gap-3 px-3 py-2 text-sm font-black uppercase tracking-wide transition-all ${active === s.key ? "bg-[#FACC15] text-black" : "text-gray-300 hover:bg-[#1a1a1a] hover:text-[#FACC15]"}`}>
-              {s.icon} {s.label}
-            </button>
-          ))}
-        </nav>
-        <button onClick={() => { clearToken(); setAuthed(false); }} className="w-full flex items-center gap-3 px-3 py-2 text-sm font-black uppercase tracking-wide text-red-400 hover:bg-[#1a1a1a] mt-6">
-          <LogOut size={18} /> Logout
+      {!sidebarOpen && (
+        <button
+          onClick={() => toggleSidebar(true)}
+          title="Show sidebar"
+          className="fixed top-4 left-4 z-50 bg-[#0a0a0a] border border-[#FACC15]/30 text-[#FACC15] p-2 rounded hover:border-[#FACC15] transition-all"
+        >
+          <PanelLeftOpen size={18} />
         </button>
-        <a href="/" className="block mt-2 px-3 py-2 text-sm text-gray-500 hover:text-[#FACC15]">← Back to Site</a>
-      </aside>
+      )}
 
-      <main className="flex-1 ml-64 p-8">
+      {sidebarOpen && (
+        <aside className="w-64 bg-[#0a0a0a] border-r border-[#FACC15]/20 p-4 fixed h-full overflow-y-auto">
+          <div className="flex items-center justify-between mb-6">
+            <div className="text-2xl font-black text-[#FACC15]">SAO ADMIN</div>
+            <button onClick={() => toggleSidebar(false)} title="Hide sidebar" className="text-gray-400 hover:text-[#FACC15]">
+              <PanelLeftClose size={20} />
+            </button>
+          </div>
+          <nav className="space-y-1">
+            {SECTIONS.map((s) => (
+              <button key={s.key} onClick={() => setActive(s.key)} className={`w-full flex items-center gap-3 px-3 py-2 text-sm font-black uppercase tracking-wide transition-all ${active === s.key ? "bg-[#FACC15] text-black" : "text-gray-300 hover:bg-[#1a1a1a] hover:text-[#FACC15]"}`}>
+                {s.icon} {s.label}
+              </button>
+            ))}
+          </nav>
+          <button
+            onClick={() => setShowPublicNav(!showPublicNav)}
+            title="Toggle the public site's nav bar in your browser (local preview only)"
+            className="w-full flex items-center gap-3 px-3 py-2 text-sm font-black uppercase tracking-wide text-gray-300 hover:bg-[#1a1a1a] hover:text-[#FACC15] mt-6"
+          >
+            {showPublicNav ? <EyeOff size={18} /> : <Eye size={18} />}
+            {showPublicNav ? "Hide Site Nav" : "Show Site Nav"}
+          </button>
+          <button onClick={() => { clearToken(); setAuthed(false); }} className="w-full flex items-center gap-3 px-3 py-2 text-sm font-black uppercase tracking-wide text-red-400 hover:bg-[#1a1a1a] mt-2">
+            <LogOut size={18} /> Logout
+          </button>
+          <a href="/" className="block mt-2 px-3 py-2 text-sm text-gray-500 hover:text-[#FACC15]">← Back to Site</a>
+        </aside>
+      )}
+
+      <main className={`flex-1 p-8 ${sidebarOpen ? "ml-64" : "ml-0"}`}>
         {section.kind === "dashboard" && (
           <div>
             <h1 className="text-4xl font-black uppercase mb-4">Dashboard</h1>
             <p className="text-gray-400 mb-6">Manage all website content from the database. Changes appear live on the public site.</p>
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {SECTIONS.filter((s) => s.kind !== "dashboard").map((s) => (
+              {SECTIONS.filter((s) => s.key !== "dashboard").map((s) => (
                 <button key={s.key} onClick={() => setActive(s.key)} className="bg-[#1a1a1a] border border-[#FACC15]/20 p-6 text-left hover:border-[#FACC15] transition-all flex items-center gap-3">
                   <span className="text-[#FACC15]">{s.icon}</span>
                   <span className="font-black uppercase text-sm">{s.label}</span>
@@ -395,7 +435,6 @@ export function AdminApp() {
         )}
         {section.kind === "crud" && <CrudSection section={section} />}
         {section.kind === "single" && <SingleSection section={section} />}
-        {section.kind === "settings" && <SettingsSection />}
         {section.kind === "submissions" && <SubmissionsSection />}
       </main>
     </div>

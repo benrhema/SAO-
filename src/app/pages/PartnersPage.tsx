@@ -1,63 +1,19 @@
-import { useEffect, useState } from "react";
 import { Building2, Handshake, Award } from "lucide-react";
 import { ScrollReveal } from "../components/ScrollReveal";
-
-interface ApiPartner {
-  id: string;
-  name: string;
-  abbreviation: string | null;
-  sector_or_scope: string;
-  partnership_since: string | null;
-  logo_url: string | null;
-  category: string;
-  category_name: string;
-  display_order: number;
-}
-
-interface ApiTestimonial {
-  id: string;
-  quote: string;
-  author_name: string;
-  author_role: string;
-  organization_name: string;
-  display_order: number;
-}
-
-const PARTNERS_URL = "http://127.0.0.1:8000/api/partners/";
-const TESTIMONIALS_URL = "http://127.0.0.1:8000/api/partner-testimonials/";
+import { useContent } from "../../lib/content";
 
 export function PartnersPage() {
-  const [partners, setPartners] = useState<ApiPartner[]>([]);
-  const [testimonials, setTestimonials] = useState<ApiTestimonial[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    Promise.all([
-      fetch(PARTNERS_URL).then((res) => {
-        if (!res.ok) throw new Error(`Partners request failed: ${res.status}`);
-        return res.json();
-      }),
-      fetch(TESTIMONIALS_URL).then((res) => {
-        if (!res.ok) throw new Error(`Testimonials request failed: ${res.status}`);
-        return res.json();
-      }),
-    ])
-      .then(([partnersData, testimonialsData]) => {
-        setPartners(partnersData);
-        setTestimonials(testimonialsData);
-      })
-      .catch((err) => setError(err.message))
-      .finally(() => setLoading(false));
-  }, []);
+  const content = useContent();
+  const partners = content.partners || [];
+  const testimonials = content.partner_testimonials || [];
 
   const matchesCategory = (categoryName: string, keyword: string) =>
     categoryName?.toLowerCase().includes(keyword);
 
-  const corporatePartners = partners.filter((p) => matchesCategory(p.category_name, "corporate"));
-  const governmentPartners = partners.filter((p) => matchesCategory(p.category_name, "government"));
+  const corporatePartners = partners.filter((p: any) => matchesCategory(p.category_name, "corporate"));
+  const governmentPartners = partners.filter((p: any) => matchesCategory(p.category_name, "government"));
   const ngoPartners = partners.filter(
-    (p) => !matchesCategory(p.category_name, "corporate") && !matchesCategory(p.category_name, "government")
+    (p: any) => !matchesCategory(p.category_name, "corporate") && !matchesCategory(p.category_name, "government")
   );
 
   return (
@@ -71,13 +27,6 @@ export function PartnersPage() {
             Together with our partners, we're creating lasting change and empowering communities worldwide.
           </p>
         </ScrollReveal>
-
-        {loading && <p className="text-gray-400 mb-12">Loading partners...</p>}
-        {error && (
-          <p className="text-red-400 mb-12">
-            Couldn't load partners right now. Make sure the Django server is running at {PARTNERS_URL}
-          </p>
-        )}
 
         {/* Partnership Stats */}
         <ScrollReveal>

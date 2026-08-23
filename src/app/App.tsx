@@ -1,11 +1,13 @@
 import { useState, useEffect } from "react";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import { Eye, EyeOff } from "lucide-react";
 import { ParticlesBackground } from "./components/ParticlesBackground";
 import { SplashScreen } from "./components/SplashScreen";
 import { Navigation } from "./components/Navigation";
 import { Footer } from "./components/Footer";
 import { Toaster } from "./components/ui/sonner";
 import { ContentProvider } from "../lib/content";
+import { getShowPublicNav, setShowPublicNav, onNavVisibilityChange } from "../lib/navVisibility";
 import { AdminApp } from "./admin/AdminApp";
 import { HomePage } from "./pages/HomePage";
 import { TeamPage } from "./pages/TeamPage";
@@ -20,6 +22,9 @@ import { EventsMediaPage } from "./pages/EventsMediaPage";
 export default function App() {
   const [showSplash, setShowSplash] = useState(true);
   const [mainVisible, setMainVisible] = useState(false);
+  const [showNav, setShowNavState] = useState(getShowPublicNav());
+
+  useEffect(() => onNavVisibilityChange(() => setShowNavState(getShowPublicNav())), []);
 
   const handleSplashComplete = () => {
     setShowSplash(false);
@@ -41,8 +46,16 @@ export default function App() {
               mainVisible ? "opacity-100" : "opacity-0"
             }`}
           >
-            <Navigation />
-             
+            {showNav && <Navigation />}
+
+            <button
+              onClick={() => setShowPublicNav(!showNav)}
+              title={showNav ? "Hide navigation" : "Show navigation"}
+              className="fixed bottom-4 right-4 z-[60] bg-black/80 border border-[#FACC15]/40 text-[#FACC15] p-2 rounded-full hover:bg-black hover:border-[#FACC15] transition-all"
+            >
+              {showNav ? <EyeOff size={18} /> : <Eye size={18} />}
+            </button>
+
             <Routes>
               <Route path="/" element={<HomePage />} />
               <Route path="/team" element={<TeamPage />} />
