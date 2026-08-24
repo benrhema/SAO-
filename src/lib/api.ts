@@ -1,4 +1,5 @@
 const TOKEN_KEY = 'sao_admin_token';
+const SUPER_KEY = 'sao_admin_is_super';
 
 export function getToken() {
   return localStorage.getItem(TOKEN_KEY) || '';
@@ -8,6 +9,13 @@ export function setToken(t: string) {
 }
 export function clearToken() {
   localStorage.removeItem(TOKEN_KEY);
+  localStorage.removeItem(SUPER_KEY);
+}
+export function isSuperUser() {
+  return localStorage.getItem(SUPER_KEY) === '1';
+}
+export function setSuperUser(v: boolean) {
+  localStorage.setItem(SUPER_KEY, v ? '1' : '0');
 }
 
 const BASE = '/api';
@@ -63,4 +71,17 @@ export const api = {
       }),
     }),
   donation: (data: any) => request('/donations', { method: 'POST', body: JSON.stringify(data) }),
+  uploadFile: async (file: File): Promise<{ url: string }> => {
+    const headers: Record<string, string> = {};
+    const token = getToken();
+    if (token) headers['Authorization'] = `Token ${token}`;
+    const formData = new FormData();
+    formData.append('file', file);
+    const res = await fetch(BASE + '/upload', { method: 'POST', headers, body: formData });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || `Upload failed (${res.status})`);
+    }
+    return res.json();
+  },
 };

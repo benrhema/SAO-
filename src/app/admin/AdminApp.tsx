@@ -3,9 +3,9 @@ import {
   LayoutDashboard, Settings, Users, Handshake, Tag, Quote, GraduationCap, BarChart3,
   Star, HeartHandshake, CalendarDays, Newspaper, Video, Image as ImageIcon, FileText,
   Award, Phone, CreditCard, Landmark, Inbox, LogOut, Plus, Pencil, Trash2,
-  Eye, EyeOff, PanelLeftClose, PanelLeftOpen,
+  Eye, EyeOff, PanelLeftClose, PanelLeftOpen, UserCog, Paperclip,
 } from "lucide-react";
-import { api, getToken, setToken, clearToken } from "../../lib/api";
+import { api, getToken, setToken, clearToken, isSuperUser, setSuperUser } from "../../lib/api";
 import { getShowPublicNav, setShowPublicNav, onNavVisibilityChange } from "../../lib/navVisibility";
 import { toast } from "sonner";
 
@@ -18,8 +18,8 @@ function setSidebarOpen(open: boolean) {
   localStorage.setItem(SIDEBAR_KEY, open ? "1" : "0");
 }
 
-type FieldType = "text" | "textarea" | "number" | "select" | "checkbox" | "image" | "list";
-interface Field { name: string; label: string; type: FieldType; options?: string[]; hint?: string; }
+type FieldType = "text" | "textarea" | "number" | "select" | "checkbox" | "image" | "file" | "list" | "password";
+interface Field { name: string; label: string; type: FieldType; options?: string[]; hint?: string; hideInTable?: boolean; }
 interface Section {
   key: string; label: string; icon: ReactNode; kind: "dashboard" | "crud" | "single" | "submissions";
   endpoint?: string; fields?: Field[];
@@ -40,7 +40,7 @@ const SECTIONS: Section[] = [
   { key: "team", label: "Team", icon: <Users size={18} />, kind: "crud", endpoint: "team", fields: [
     { name: "type", label: "Type", type: "select", options: ["leadership", "board", "staff"] },
     { name: "name", label: "Name", type: "text" }, { name: "role", label: "Role", type: "text" },
-    { name: "bio", label: "Bio", type: "textarea" }, { name: "image_url", label: "Image URL", type: "image" },
+    { name: "bio", label: "Bio", type: "textarea" }, { name: "image_url", label: "Image", type: "image" },
     { name: "email", label: "Email", type: "text" }, { name: "linkedin", label: "LinkedIn", type: "text" },
     { name: "department", label: "Department", type: "text" },
   ] },
@@ -62,7 +62,7 @@ const SECTIONS: Section[] = [
   ] },
   { key: "success_stories", label: "Success Stories", icon: <Star size={18} />, kind: "crud", endpoint: "success-stories", fields: [
     { name: "name", label: "Name", type: "text" }, { name: "story", label: "Story", type: "textarea" },
-    { name: "program", label: "Program", type: "text" }, { name: "image_url", label: "Image URL", type: "image" },
+    { name: "program", label: "Program", type: "text" }, { name: "image_url", label: "Image", type: "image" },
   ] },
   { key: "volunteer_opportunities", label: "Volunteer Roles", icon: <HeartHandshake size={18} />, kind: "crud", endpoint: "volunteer-opportunities", fields: [
     { name: "title", label: "Title", type: "text" }, { name: "location", label: "Location", type: "text" },
@@ -77,7 +77,7 @@ const SECTIONS: Section[] = [
     { name: "title", label: "Title", type: "text" }, { name: "date", label: "Date", type: "text" },
     { name: "time", label: "Time", type: "text" }, { name: "location", label: "Location", type: "text" },
     { name: "attendees", label: "Attendees", type: "text" }, { name: "price", label: "Price", type: "text" },
-    { name: "description", label: "Description", type: "textarea" }, { name: "image_url", label: "Image URL", type: "image" },
+    { name: "description", label: "Description", type: "textarea" }, { name: "image_url", label: "Image", type: "image" },
     { name: "featured", label: "Featured", type: "checkbox" },
   ] },
   { key: "past_events", label: "Past Events", icon: <CalendarDays size={18} />, kind: "crud", endpoint: "past-events", fields: [
@@ -87,13 +87,13 @@ const SECTIONS: Section[] = [
   { key: "news", label: "News", icon: <Newspaper size={18} />, kind: "crud", endpoint: "news", fields: [
     { name: "title", label: "Title", type: "text" }, { name: "category", label: "Category", type: "text" },
     { name: "excerpt", label: "Excerpt", type: "textarea" }, { name: "content", label: "Full Content", type: "textarea" },
-    { name: "image_url", label: "Image URL", type: "image" }, { name: "is_published", label: "Published", type: "checkbox" },
+    { name: "image_url", label: "Image", type: "image" }, { name: "is_published", label: "Published", type: "checkbox" },
   ] },
   { key: "partners", label: "Partners", icon: <Handshake size={18} />, kind: "crud", endpoint: "partners", fields: [
     { name: "category", label: "Category (e.g. Corporate, Government, NGO)", type: "text" },
     { name: "name", label: "Name", type: "text" }, { name: "abbreviation", label: "Abbreviation", type: "text" },
     { name: "sector_or_scope", label: "Sector / Scope", type: "text" }, { name: "partnership_since", label: "Partner Since", type: "text" },
-    { name: "logo_url", label: "Logo URL", type: "image" },
+    { name: "logo_url", label: "Logo", type: "image" },
   ] },
   { key: "partner_categories", label: "Partner Categories", icon: <Tag size={18} />, kind: "crud", endpoint: "partner-categories", fields: [
     { name: "category_name", label: "Category Name", type: "text" },
@@ -105,18 +105,18 @@ const SECTIONS: Section[] = [
   { key: "media_videos", label: "Media Videos", icon: <Video size={18} />, kind: "crud", endpoint: "media-videos", fields: [
     { name: "section", label: "Section", type: "select", options: ["all", "impact", "programs", "events"] },
     { name: "title", label: "Title", type: "text" }, { name: "description", label: "Description", type: "textarea" },
-    { name: "video_url", label: "Video URL", type: "text" }, { name: "thumbnail_url", label: "Thumbnail URL", type: "image" },
+    { name: "video_url", label: "Video File / URL", type: "file" }, { name: "thumbnail_url", label: "Thumbnail Image", type: "image" },
     { name: "duration", label: "Duration", type: "text" }, { name: "category", label: "Category", type: "text" },
     { name: "date_label", label: "Date (display text)", type: "text" }, { name: "is_featured", label: "Featured", type: "checkbox" },
   ] },
   { key: "photo_galleries", label: "Photo Galleries", icon: <ImageIcon size={18} />, kind: "crud", endpoint: "photo-galleries", fields: [
     { name: "title", label: "Title", type: "text" }, { name: "photo_count", label: "Photo Count", type: "number" },
-    { name: "cover_url", label: "Cover URL", type: "image" },
+    { name: "cover_url", label: "Cover Image", type: "image" },
   ] },
   { key: "resources", label: "Resources", icon: <FileText size={18} />, kind: "crud", endpoint: "resources", fields: [
     { name: "resource_type", label: "Category", type: "select", options: ["report", "brochure", "media", "form"] },
     { name: "title", label: "Title", type: "text" }, { name: "description", label: "Description", type: "textarea" },
-    { name: "file_url", label: "File URL", type: "text" }, { name: "file_type", label: "File Type (PDF/ZIP/...)", type: "text" },
+    { name: "file_url", label: "File", type: "file" }, { name: "file_type", label: "File Type (PDF/ZIP/...)", type: "text" },
     { name: "file_size", label: "File Size", type: "text" }, { name: "year", label: "Year", type: "number" },
     { name: "download_count", label: "Downloads", type: "number" },
   ] },
@@ -145,10 +145,33 @@ const SECTIONS: Section[] = [
     { name: "email", label: "Email", type: "text" },
   ] },
   { key: "submissions", label: "Submissions", icon: <Inbox size={18} />, kind: "submissions" },
+  { key: "admin_users", label: "Admin Users", icon: <UserCog size={18} />, kind: "crud", endpoint: "admin-users", fields: [
+    { name: "username", label: "Username", type: "text" }, { name: "email", label: "Email", type: "text" },
+    { name: "is_active", label: "Active", type: "checkbox" },
+    { name: "password", label: "Password", type: "password", hint: "Leave blank to keep the current password when editing", hideInTable: true },
+  ] },
 ];
 
 function FieldInput({ field, value, onChange }: { field: Field; value: any; onChange: (v: any) => void }) {
+  const [uploading, setUploading] = useState(false);
   const base = "w-full bg-black/60 border border-[#FACC15]/30 px-3 py-2 text-white text-sm outline-none focus:border-[#FACC15] rounded";
+
+  const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setUploading(true);
+    try {
+      const { url } = await api.uploadFile(file);
+      onChange(url);
+      toast.success("Uploaded");
+    } catch (err: any) {
+      toast.error(err.message || "Upload failed");
+    } finally {
+      setUploading(false);
+    }
+  };
+
   if (field.type === "textarea") return <textarea rows={3} className={base + " resize-y"} value={value || ""} onChange={(e) => onChange(e.target.value)} placeholder={field.label} />;
   if (field.type === "list") return (
     <textarea
@@ -161,12 +184,40 @@ function FieldInput({ field, value, onChange }: { field: Field; value: any; onCh
   );
   if (field.type === "number") return <input type="number" className={base} value={value ?? ""} onChange={(e) => onChange(e.target.value === "" ? "" : Number(e.target.value))} />;
   if (field.type === "checkbox") return <input type="checkbox" className="w-5 h-5 accent-[#FACC15]" checked={!!value} onChange={(e) => onChange(e.target.checked)} />;
+  if (field.type === "password") return <input type="password" autoComplete="new-password" className={base} value={value || ""} onChange={(e) => onChange(e.target.value)} placeholder={field.hint || field.label} />;
   if (field.type === "select") return (
     <select className={base} value={value || ""} onChange={(e) => onChange(e.target.value)}>
       <option value="">Select...</option>
       {field.options?.map((o) => <option key={o} value={o}>{o}</option>)}
     </select>
   );
+  if (field.type === "image" || field.type === "file") {
+    return (
+      <div className="space-y-2">
+        <input
+          type="text"
+          className={base}
+          value={value || ""}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder="Paste a URL, or upload from your computer below"
+        />
+        <label className={`inline-flex items-center gap-2 text-xs font-black uppercase tracking-wide border border-[#FACC15]/40 px-3 py-2 rounded transition-all ${uploading ? "text-gray-500 border-gray-600" : "text-[#FACC15] hover:border-[#FACC15] cursor-pointer"}`}>
+          {field.type === "image" ? <ImageIcon size={14} /> : <Paperclip size={14} />}
+          {uploading ? "Uploading..." : "Upload from computer"}
+          <input
+            type="file"
+            className="hidden"
+            accept={field.type === "image" ? "image/*" : undefined}
+            disabled={uploading}
+            onChange={handleFile}
+          />
+        </label>
+        {field.type === "image" && value && (
+          <img src={value} alt="" className="h-20 w-20 object-cover rounded border border-[#FACC15]/20 block" />
+        )}
+      </div>
+    );
+  }
   return <input type="text" className={base} value={value || ""} onChange={(e) => onChange(e.target.value)} placeholder={field.label} />;
 }
 
@@ -198,6 +249,8 @@ function CrudSection({ section }: { section: Section }) {
     catch (e: any) { toast.error(e.message); }
   };
 
+  const tableFields = section.fields!.filter((f) => !f.hideInTable).slice(0, 4);
+
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
@@ -212,14 +265,14 @@ function CrudSection({ section }: { section: Section }) {
           <table className="w-full text-sm">
             <thead className="bg-[#1a1a1a] text-[#FACC15] uppercase text-xs">
               <tr>
-                {section.fields!.slice(0, 4).map((f) => <th key={f.name} className="text-left p-3">{f.label}</th>)}
+                {tableFields.map((f) => <th key={f.name} className="text-left p-3">{f.label}</th>)}
                 <th className="text-right p-3">Actions</th>
               </tr>
             </thead>
             <tbody>
               {items.map((item) => (
                 <tr key={item.id} className="border-t border-[#FACC15]/10">
-                  {section.fields!.slice(0, 4).map((f) => (
+                  {tableFields.map((f) => (
                     <td key={f.name} className="p-3 text-gray-300 max-w-xs truncate">
                       {f.type === "checkbox" ? (item[f.name] ? "Yes" : "No") : f.type === "list" ? (Array.isArray(item[f.name]) ? item[f.name].join(", ") : "") : String(item[f.name] ?? "")}
                     </td>
@@ -230,7 +283,7 @@ function CrudSection({ section }: { section: Section }) {
                   </td>
                 </tr>
               ))}
-              {items.length === 0 && <tr><td colSpan={5} className="p-4 text-center text-gray-500">No items yet</td></tr>}
+              {items.length === 0 && <tr><td colSpan={tableFields.length + 1} className="p-4 text-center text-gray-500">No items yet</td></tr>}
             </tbody>
           </table>
         </div>
@@ -341,7 +394,12 @@ function Login({ onLogin }: { onLogin: () => void }) {
   const [pw, setPw] = useState("");
   const [err, setErr] = useState("");
   const submit = async () => {
-    try { const { token } = await api.login(username, pw); setToken(token); onLogin(); }
+    try {
+      const res = await api.login(username, pw);
+      setToken(res.token);
+      setSuperUser(!!res.is_superuser);
+      onLogin();
+    }
     catch (e: any) { setErr(e.message || "Invalid username or password"); }
   };
   return (
@@ -374,7 +432,8 @@ export function AdminApp() {
 
   if (!authed) return <Login onLogin={() => setAuthed(true)} />;
 
-  const section = SECTIONS.find((s) => s.key === active) || SECTIONS[0];
+  const sections = SECTIONS.filter((s) => s.key !== "admin_users" || isSuperUser());
+  const section = sections.find((s) => s.key === active) || sections[0];
 
   return (
     <div className="min-h-screen bg-black text-white flex">
@@ -397,7 +456,7 @@ export function AdminApp() {
             </button>
           </div>
           <nav className="space-y-1">
-            {SECTIONS.map((s) => (
+            {sections.map((s) => (
               <button key={s.key} onClick={() => setActive(s.key)} className={`w-full flex items-center gap-3 px-3 py-2 text-sm font-black uppercase tracking-wide transition-all ${active === s.key ? "bg-[#FACC15] text-black" : "text-gray-300 hover:bg-[#1a1a1a] hover:text-[#FACC15]"}`}>
                 {s.icon} {s.label}
               </button>
@@ -424,7 +483,7 @@ export function AdminApp() {
             <h1 className="text-4xl font-black uppercase mb-4">Dashboard</h1>
             <p className="text-gray-400 mb-6">Manage all website content from the database. Changes appear live on the public site.</p>
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {SECTIONS.filter((s) => s.key !== "dashboard").map((s) => (
+              {sections.filter((s) => s.key !== "dashboard").map((s) => (
                 <button key={s.key} onClick={() => setActive(s.key)} className="bg-[#1a1a1a] border border-[#FACC15]/20 p-6 text-left hover:border-[#FACC15] transition-all flex items-center gap-3">
                   <span className="text-[#FACC15]">{s.icon}</span>
                   <span className="font-black uppercase text-sm">{s.label}</span>

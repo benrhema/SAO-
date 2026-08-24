@@ -1,8 +1,13 @@
+import uuid
+
 from django.contrib.auth import authenticate
+from django.contrib.auth.models import User
+from django.core.files.storage import default_storage
 from rest_framework import viewsets
 from rest_framework.authtoken.models import Token
-from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import AllowAny, IsAuthenticatedOrReadOnly
+from rest_framework.decorators import api_view, permission_classes, parser_classes
+from rest_framework.parsers import MultiPartParser, FormParser
+from rest_framework.permissions import AllowAny, IsAuthenticated, IsAuthenticatedOrReadOnly
 from rest_framework.response import Response
 
 from .models import (
@@ -33,8 +38,9 @@ from .models import (
     DownloadableResource,
     FormSubmission,
 )
-from .permissions import IsAuthenticatedOrCreateOnly
+from .permissions import IsAuthenticatedOrCreateOnly, IsSuperUser
 from .serializers import (
+    AdminUserSerializer,
     SiteSettingsSerializer,
     TeamMemberSerializer,
     AboutValueSerializer,
@@ -208,6 +214,17 @@ class FormSubmissionViewSet(viewsets.ModelViewSet):
 
 
 # ---------------------------------------------------------------------------
+# Admin account management (super admin only — create/activate/deactivate/
+# delete other admin accounts). Superusers themselves are excluded from the
+# manageable list.
+# ---------------------------------------------------------------------------
+class AdminUserViewSet(viewsets.ModelViewSet):
+    queryset = User.objects.filter(is_superuser=False).order_by('username')
+    serializer_class = AdminUserSerializer
+    permission_classes = [IsSuperUser]
+
+
+# ---------------------------------------------------------------------------
 # Auth
 # ---------------------------------------------------------------------------
 @api_view(['POST'])
@@ -218,8 +235,27 @@ def login_view(request):
     user = authenticate(request, username=username, password=password)
     if user is None:
         return Response({'error': 'Invalid username or password'}, status=401)
+    if not user.is_active:
+        return Response({'error': 'This account has been deactivated'}, status=401)
     token, _ = Token.objects.get_or_create(user=user)
-    return Response({'token': token.key})
+    return Response({'token': token.key, 'username': user.username, 'is_superuser': user.is_superuser})
+
+
+# ---------------------------------------------------------------------------
+# File uploads (images/documents attached from the admin's computer)
+# ---------------------------------------------------------------------------
+@api_view(['POST'])
+@parser_classes([MultiPartParser, FormParser])
+@permission_classes([IsAuthenticated])
+def upload_view(request):
+    f = request.FILES.get('file')
+    if not f:
+        return Response({'error': 'No file provided'}, status=400)
+    name = f"uploads/{uuid.uuid4().hex}-{f.name}"
+    saved_path = default_storage.save(name, f)
+    # Model fields are URLField, which requires a full absolute URL — a bare
+    # "/media/..." path fails validation on save.
+    return Response({'url': request.build_absolute_uri(default_storage.url(saved_path))})
 
 
 # ---------------------------------------------------------------------------

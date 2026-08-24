@@ -1,6 +1,7 @@
 from django.urls import path
 from rest_framework.routers import DefaultRouter
 from .views import (
+    AdminUserViewSet,
     SiteSettingsViewSet,
     TeamMemberViewSet,
     AboutValueViewSet,
@@ -29,6 +30,7 @@ from .views import (
     FormSubmissionViewSet,
     login_view,
     content_view,
+    upload_view,
 )
 
 router = DefaultRouter(trailing_slash=False)
@@ -58,8 +60,10 @@ router.register(r'partner-testimonials', PartnerTestimonialViewSet, basename='pa
 router.register(r'media-videos', MediaVideoViewSet, basename='media-videos')
 router.register(r'resources', DownloadableResourceViewSet, basename='resources')
 router.register(r'form-submissions', FormSubmissionViewSet, basename='form-submissions')
+router.register(r'admin-users', AdminUserViewSet, basename='admin-users')
 
 urlpatterns = [
     path('content', content_view),
     path('auth/login', login_view),
+    path('upload', upload_view),
 ] + router.urls

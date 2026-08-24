@@ -31,10 +31,11 @@ export default defineConfig({
     },
   },
 
-  // Proxy API requests to the local Django backend during development
+  // Proxy API and uploaded-media requests to the local Django backend during development
   server: {
     proxy: {
       '/api': 'http://localhost:8000',
+      '/media': 'http://localhost:8000',
     },
   },
 
